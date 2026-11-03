@@ -1,0 +1,13 @@
+# Không gửi bí mật, dữ liệu người dùng hoặc sản phẩm build vào Docker build context.
+.env
+.env.*
+!.env.example
+**/bin
+**/obj
+# Chỉ loại dữ liệu runtime; giữ thư mục mã nguồn Infrastructure/Storage.
+data/storage
+**/node_modules
+**/.expo
+artifacts
+.git
+.playwright-mcp

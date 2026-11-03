@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flowershop
+      POSTGRES_USER: flowershop
+      POSTGRES_PASSWORD: ${FLOWERSHOP_DB_PASSWORD:?required}
+    volumes:
+      - flowershop-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowershop -d flowershop"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [internal]
+  api:
+    build:
+      context: ..
+      dockerfile: src/FlowerShop.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      FLOWERSHOP_CONNECTION_STRING: Host=postgres;Port=5432;Database=flowershop;Username=flowershop;Password=${FLOWERSHOP_DB_PASSWORD}
+      Jwt__Issuer: FlowerShop.Api
+      Jwt__Audience: FlowerShop.Mobile
+      Jwt__SigningKey: ${FLOWERSHOP_JWT_KEY:?required}
+      Jwt__AccessTokenMinutes: 30
+      Jwt__RefreshTokenDays: 30
+      Storage__RootPath: /var/lib/flowershop/storage
+    volumes:
+      - flowershop-storage:/var/lib/flowershop/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certbot:/var/www/certbot:ro
+      - ./nginx/letsencrypt:/etc/letsencrypt:ro
+    depends_on: [api]
+    networks: [internal]
+volumes:
+  flowershop-postgres:
+  flowershop-storage:
+networks:
+  internal:
+    internal: true

@@ -1,0 +1,17 @@
+# Không đưa dữ liệu, bí mật hoặc sản phẩm build của môi trường local vào source.
+**/bin/
+**/obj/
+**/node_modules/
+**/.expo/
+.playwright-mcp/
+.env
+.env.*
+!.env.example
+*.user
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+artifacts/
+/data/

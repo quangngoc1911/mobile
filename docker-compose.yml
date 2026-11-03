@@ -1,0 +1,46 @@
+# Database local chỉ lắng nghe loopback; volume riêng không dùng chung với dự án khác.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: flowershop
+      POSTGRES_USER: flowershop
+      POSTGRES_PASSWORD: ${FLOWERSHOP_DB_PASSWORD:?Set FLOWERSHOP_DB_PASSWORD in .env or the environment}
+    ports:
+      - "127.0.0.1:${FLOWERSHOP_DB_PORT:-25432}:5432"
+    volumes:
+      - flowershop-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowershop -d flowershop"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  # Scalar dùng chung API Development và chỉ được truy cập từ máy local.
+  api:
+    build:
+      context: .
+      dockerfile: src/FlowerShop.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      FLOWERSHOP_CONNECTION_STRING: "Host=postgres;Port=5432;Database=flowershop;Username=flowershop;Password=${FLOWERSHOP_DB_PASSWORD:?Set FLOWERSHOP_DB_PASSWORD in .env or the environment}"
+      Jwt__SigningKey: ${FLOWERSHOP_JWT_KEY:?Set FLOWERSHOP_JWT_KEY in .env or the environment}
+      Storage__RootPath: /var/lib/flowershop/storage
+    ports:
+      - "127.0.0.1:${FLOWERSHOP_API_PORT:-5284}:8080"
+    volumes:
+      - ./data/storage:/var/lib/flowershop/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+  # Bản web chỉ để thử local; proxy nội bộ giúp trình duyệt gọi API cùng origin.
+  mobile-web:
+    build:
+      context: ./mobile
+      dockerfile: Dockerfile.web
+    ports:
+      - "127.0.0.1:${FLOWERSHOP_MOBILE_WEB_PORT:-8085}:8080"
+    depends_on:
+      api:
+        condition: service_started
+volumes:
+  flowershop-postgres:
